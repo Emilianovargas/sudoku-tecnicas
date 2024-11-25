@@ -1,0 +1,129 @@
+#include <iostream>
+#include <vector>
+#include <chrono> // Biblioteca para medir el tiempo
+
+using namespace std;
+
+const int N = 9;
+
+// Función para inicializar la tabla de posibilidades
+void inicializar_dp(vector<vector<vector<bool>>>& dp, vector<vector<int>>& tablero) {
+    for (int fila = 0; fila < N; fila++) {
+        for (int col = 0; col < N; col++) {
+            if (tablero[fila][col] == 0) {
+                for (int num = 1; num <= 9; num++) {
+                    dp[fila][col][num - 1] = true; // Inicialmente, todos los números son válidos
+                }
+            }
+        }
+    }
+}
+
+// Función para validar restricciones y actualizar la tabla de posibilidades
+void actualizar_dp(vector<vector<vector<bool>>>& dp, vector<vector<int>>& tablero, int fila, int col, int num) {
+    // Invalidar el número en la misma fila y columna
+    for (int i = 0; i < N; i++) {
+        dp[fila][i][num - 1] = false;
+        dp[i][col][num - 1] = false;
+    }
+
+    // Invalidar en el subcuadro 3x3
+    int inicio_fila = fila - fila % 3;
+    int inicio_col = col - col % 3;
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            dp[inicio_fila + i][inicio_col + j][num - 1] = false;
+        }
+    }
+}
+
+// Función para encontrar la siguiente celda vacía con más restricciones
+pair<int, int> encontrar_mejor_celda(vector<vector<int>>& tablero, vector<vector<vector<bool>>>& dp) {
+    int mejor_fila = -1, mejor_col = -1, min_opciones = N + 1;
+
+    for (int fila = 0; fila < N; fila++) {
+        for (int col = 0; col < N; col++) {
+            if (tablero[fila][col] == 0) {
+                int opciones = 0;
+                for (int num = 1; num <= 9; num++) {
+                    if (dp[fila][col][num - 1]) opciones++;
+                }
+                if (opciones < min_opciones) {
+                    mejor_fila = fila;
+                    mejor_col = col;
+                    min_opciones = opciones;
+                }
+            }
+        }
+    }
+    return {mejor_fila, mejor_col};
+}
+
+// Función recursiva para resolver el Sudoku
+bool resolver_sudoku(vector<vector<int>>& tablero, vector<vector<vector<bool>>>& dp) {
+    auto [fila, col] = encontrar_mejor_celda(tablero, dp);
+    if (fila == -1 && col == -1) return true; // Tablero completo
+
+    for (int num = 1; num <= 9; num++) {
+        if (dp[fila][col][num - 1]) {
+            tablero[fila][col] = num;
+
+            // Guardar estado previo
+            vector<vector<vector<bool>>> dp_copia = dp;
+            actualizar_dp(dp, tablero, fila, col, num);
+
+            if (resolver_sudoku(tablero, dp)) return true;
+
+            // Restaurar estado si falla
+            dp = dp_copia;
+            tablero[fila][col] = 0;
+        }
+    }
+
+    return false;
+}
+
+// Función para imprimir el tablero
+void imprimir_tablero(const vector<vector<int>>& tablero) {
+    for (const auto& fila : tablero) {
+        for (int valor : fila) {
+            cout << valor << " ";
+        }
+        cout << endl;
+    }
+}
+
+int main() {
+    // Tablero inicial
+    vector<vector<int>> sudoku = {
+        {5, 3, 0, 0, 7, 0, 0, 0, 0},
+        {6, 0, 0, 1, 9, 5, 0, 0, 0},
+        {0, 9, 8, 0, 0, 0, 0, 6, 0},
+        {8, 0, 0, 0, 6, 0, 0, 0, 3},
+        {4, 0, 0, 8, 0, 3, 0, 0, 1},
+        {7, 0, 0, 0, 2, 0, 0, 0, 6},
+        {0, 6, 0, 0, 0, 0, 2, 8, 0},
+        {0, 0, 0, 4, 1, 9, 0, 0, 5},
+        {0, 0, 0, 0, 8, 0, 0, 7, 9}
+    };
+
+    // Tabla de posibilidades
+    vector<vector<vector<bool>>> dp(N, vector<vector<bool>>(N, vector<bool>(N, false)));
+    inicializar_dp(dp, sudoku);
+
+    // Medir tiempo de ejecución
+    auto inicio = chrono::high_resolution_clock::now();
+
+    if (resolver_sudoku(sudoku, dp)) {
+        auto fin = chrono::high_resolution_clock::now();
+        chrono::duration<double> duracion = fin - inicio;
+
+        cout << "Sudoku resuelto:\n";
+        imprimir_tablero(sudoku);
+        cout << "Tiempo de ejecucion: " << duracion.count() << " segundos.\n";
+    } else {
+        cout << "No tiene solución.\n";
+    }
+
+    return 0;
+}
